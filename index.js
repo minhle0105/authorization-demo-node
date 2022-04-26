@@ -3,10 +3,14 @@ const app = express();
 const mysql = require('mysql');
 const cors = require('cors');
 
+const bodyParser = require('body-parser');
+const cookieParser = require('cookie-parser');
+const session = require('express-session');
+const bcrypt = require('bcrypt');
+const saltRounds = 10;
+
 app.use(cors());
 app.use(express.json());
-
-let usernames = new Set();
 
 const db = mysql.createConnection({
     user: 'root',
@@ -37,7 +41,9 @@ app.post("/sign-in", (request, response) => {
             }
         }
         else {
-            console.log("ABC")
+            response.status(400).send({
+                message: "User Not Found"
+            })
         }
     })
 })
@@ -46,24 +52,25 @@ app.post("/sign-up", (request, response) => {
     let username = request.body.username;
     let password = request.body.password;
 
-    if (usernames.has(username)) {
-        response.status(400).send({
-            message: "User already existed"
-        });
-    }
-    else {
-        db.query("INSERT INTO users (username, password) VALUES (?, ?);", [username, password], (error, result) => {
-            if (error) {
-                response.status(400).send({
-                    message: "Fail to Sign In"
-                });
-            }
-            else {
-                response.status(201).send({
-                    message: "Welcome new user"
-                });
-                usernames.add(username);
-            }
-        })
-    }
+    db.query("SELECT * from Users.users WHERE username=(?);", username, (error, result) => {
+        if (result) {
+            response.status(400).send({
+                message: "User Already Registered"
+            })
+        }
+        else {
+            db.query("INSERT INTO users (username, password) VALUES (?, ?);", [username, password], (error, result) => {
+                if (error) {
+                    response.status(400).send({
+                        message: "Fail to Sign In"
+                    });
+                }
+                else {
+                    response.status(201).send({
+                        message: "Welcome new user"
+                    });
+                }
+            })
+        }
+    })
 })
