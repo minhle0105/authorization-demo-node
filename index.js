@@ -26,10 +26,14 @@ app.post("/sign-in", (request, response) => {
     db.query("SELECT * FROM Users.users WHERE username=(?);", username, (error, result) => {
         if (result) {
             if (result[0].password === password) {
-                response.status(200).send(`Welcome ${username}`);
+                response.status(200).send({
+                    message: `Welcome ${username}`
+                });
             }
             else {
-                response.status(400).send("Incorrect password")
+                response.status(400).send({
+                    message: "Incorrect password"
+                })
             }
         }
         else {
@@ -41,16 +45,23 @@ app.post("/sign-in", (request, response) => {
 app.post("/sign-up", (request, response) => {
     let username = request.body.username;
     let password = request.body.password;
+
     if (usernames.has(username)) {
-        response.status(400).send("User already existed");
+        response.status(400).send({
+            message: "User already existed"
+        });
     }
     else {
         db.query("INSERT INTO users (username, password) VALUES (?, ?);", [username, password], (error, result) => {
             if (error) {
-                response.status(400).send("Fail to sign up");
+                response.status(400).send({
+                    message: "Fail to Sign In"
+                });
             }
             else {
-                response.status(201).send("Welcome new user");
+                response.status(201).send({
+                    message: "Welcome new user"
+                });
                 usernames.add(username);
             }
         })
