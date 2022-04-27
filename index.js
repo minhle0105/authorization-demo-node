@@ -43,6 +43,20 @@ app.listen(PORT, () => {
     console.log(`Server listening on ${PORT}`)
 })
 
+app.get("/sign-in", (request, response) => {
+    if (request.session.user) {
+        response.send({
+            loggedIn: true,
+            user: request.session.user,
+        })
+    }
+    else {
+        response.send({
+            loggedIn: false
+        })
+    }
+})
+
 app.post("/sign-in", (request, response) => {
     let username = request.body.username;
     let password = request.body.password;
