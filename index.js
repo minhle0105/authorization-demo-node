@@ -9,6 +9,8 @@ const session = require('express-session');
 const bcrypt = require('bcrypt');
 const saltRounds = 10;
 
+const jwt = require('jsonwebtoken');
+
 app.use(express.json());
 app.use(cors({
     origin: ["http://localhost:3000"],
@@ -25,7 +27,7 @@ app.use(
         resave: false,
         saveUninitialized: false,
         cookie: {
-            expires: 60 * 60 * 24,
+            expires: 600000,
         },
     })
 );
@@ -39,6 +41,29 @@ const db = mysql.createConnection({
 
 
 const PORT = 3001;
+
+const verifyJwt = (request, response, next) => {
+    const token = request.header("x-access-token");
+    if (!token) {
+        console.log("No token detected")
+        response.send("No token detected")
+    }
+    else {
+        jwt.verify(token, "jwtSecret", (error, decoded) => {
+            if (error) {
+                response.send({
+                    auth: false,
+                    message: "Invalid token"
+                });
+            }
+            else {
+                request.userId = decoded.id;
+                next(request.userId);
+            }
+        })
+    }
+}
+
 app.listen(PORT, () => {
     console.log(`Server listening on ${PORT}`)
 })
@@ -57,6 +82,10 @@ app.get("/sign-in", (request, response) => {
     }
 })
 
+app.get("/isAuthenticated", verifyJwt, (request, response) => {
+    response.send("User is successfully authenticated");
+})
+
 app.post("/sign-in", (request, response) => {
     let username = request.body.username;
     let password = request.body.password;
@@ -64,21 +93,29 @@ app.post("/sign-in", (request, response) => {
         if (result.length > 0) {
             bcrypt.compare(password, result[0].password, (e, r) => {
                 if (r) {
+                    const id = result[0].id;
+                    const token = jwt.sign({id}, "jwtSecret", {
+                        expiresIn: 300
+                    })
                     request.session.user = result;
-                    response.status(200).send({
-                        message: `Welcome ${username}`
-                    });
+                    response.json({
+                        auth: true,
+                        token: token,
+                        result: result
+                    })
                 }
                 else {
-                    response.status(400).send({
+                    response.json({
+                        auth: false,
                         message: "Incorrect password"
                     })
                 }
             })
         }
         else {
-            response.status(400).send({
-                message: "User Not Found"
+            response.json({
+                auth: false,
+                message: "User not found"
             })
         }
     })
