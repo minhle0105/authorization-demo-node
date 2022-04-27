@@ -7,11 +7,28 @@ const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const session = require('express-session');
 const bcrypt = require('bcrypt');
-const e = require("express");
 const saltRounds = 10;
 
-app.use(cors());
 app.use(express.json());
+app.use(cors({
+    origin: ["http://localhost:3000"],
+    methods: ["GET", "POST"],
+    credentials: true
+}));
+app.use(cookieParser());
+app.use(bodyParser.urlencoded({ extended: true }));
+
+app.use(
+    session({
+        key: "userId",
+        secret: "subscribe",
+        resave: false,
+        saveUninitialized: false,
+        cookie: {
+            expires: 60 * 60 * 24,
+        },
+    })
+);
 
 const db = mysql.createConnection({
     user: 'root',
@@ -33,6 +50,7 @@ app.post("/sign-in", (request, response) => {
         if (result.length > 0) {
             bcrypt.compare(password, result[0].password, (e, r) => {
                 if (r) {
+                    request.session.user = result;
                     response.status(200).send({
                         message: `Welcome ${username}`
                     });
@@ -63,7 +81,6 @@ app.post("/sign-up", (request, response) => {
         else {
             db.query("SELECT * from Users.users WHERE username=(?);", username, (error, result) => {
                 if (result.length > 0) {
-                    console.log(result.length)
                     response.status(400).send({
                         message: "User Already Registered"
                     })
