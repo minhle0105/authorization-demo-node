@@ -68,6 +68,20 @@ app.listen(PORT, () => {
     console.log(`Server listening on ${PORT}`)
 })
 
+app.get("/roles", (request, response) => {
+    db.query("SELECT DISTINCT role FROM Users.users", (error, result) => {
+        if (error) {
+            console.log(error);
+            response.status(500).send({
+                message: "Cannot get roles"
+            })
+        }
+        else {
+            response.status(200).send(result);
+        }
+    })
+})
+
 app.get("/sign-in", (request, response) => {
     if (request.session.user) {
         response.send({
@@ -124,6 +138,7 @@ app.post("/sign-in", (request, response) => {
 app.post("/sign-up", (request, response) => {
     let username = request.body.username;
     let password = request.body.password;
+    let role = request.body.role;
     console.log("Sign up request received");
 
     bcrypt.hash(password, saltRounds, (error, hash) => {
@@ -138,7 +153,6 @@ app.post("/sign-up", (request, response) => {
                     });
                 }
                 else {
-                    const role = 'moderator';
                     db.query("INSERT INTO users (username, password, role) VALUES (?, ?, ?);", [username, hash, role], (error, result) => {
                         if (error) {
                             console.log(error)
