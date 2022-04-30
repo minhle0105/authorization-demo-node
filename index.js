@@ -124,6 +124,7 @@ app.post("/sign-in", (request, response) => {
 app.post("/sign-up", (request, response) => {
     let username = request.body.username;
     let password = request.body.password;
+    console.log("Sign up request received");
 
     bcrypt.hash(password, saltRounds, (error, hash) => {
         if (error) {
@@ -134,10 +135,11 @@ app.post("/sign-up", (request, response) => {
                 if (result.length > 0) {
                     response.status(400).send({
                         message: "User Already Registered"
-                    })
+                    });
                 }
                 else {
-                    db.query("INSERT INTO users (username, password) VALUES (?, ?);", [username, hash], (error, result) => {
+                    const role = 'moderator';
+                    db.query("INSERT INTO users (username, password, role) VALUES (?, ?, ?);", [username, hash, role], (error, result) => {
                         if (error) {
                             console.log(error)
                             response.status(400).send({
