@@ -10,6 +10,9 @@ const bcrypt = require('bcrypt');
 const saltRounds = 10;
 
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+
+require('dotenv').config();
 
 app.use(express.json());
 app.use(cors({
@@ -33,14 +36,15 @@ app.use(
 );
 
 const db = mysql.createConnection({
-    user: 'root',
-    host: 'localhost',
-    password: 'minhle123',
-    database: 'Users',
+    user: process.env.database_user,
+    host: process.env.database_host,
+    password: process.env.database_password,
+    database: process.env.database_schema,
 });
 
 
-const PORT = 3001;
+const PORT = process.env.PORT;
+const jwtSecret = crypto.createHash(process.env.encryptAlgorithm).update(process.env.jwtSecret, 'utf-8').digest('hex');
 
 const verifyJwt = (request, response, next) => {
     const token = request.headers.authorization;
@@ -49,16 +53,14 @@ const verifyJwt = (request, response, next) => {
         response.status(401);
     }
     else {
-        jwt.verify(token, "jwtSecret", (error, user) => {
+        jwt.verify(token, jwtSecret, (error, user) => {
             if (error) {
-                console.log("Token not verified")
                 response.status(403).send({
                     auth: false,
                     message: "Invalid token"
                 });
             }
             else {
-                console.log("verified")
                 request.userId = user.id;
                 next();
             }
@@ -67,7 +69,7 @@ const verifyJwt = (request, response, next) => {
 }
 
 function generateJwt (id) {
-    return jwt.sign({id}, "jwtSecret", {
+    return jwt.sign({id}, jwtSecret, {
         expiresIn: 600
     });
 }
