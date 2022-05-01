@@ -79,84 +79,133 @@ app.listen(PORT, () => {
 })
 
 app.get("/roles", verifyJwt, (request, response) => {
-    db.query("SELECT DISTINCT role FROM Users.users", (error, result) => {
-        if (error) {
+
+    getAllRoles()
+        .then((result) => {
+            response.status(200).send(result);
+        })
+        .catch((error) => {
             console.log(error);
             response.status(500).send({
                 message: "Cannot get roles"
             })
-        }
-        else {
-            response.status(200).send(result);
-        }
-    })
+        })
 })
 
 app.post("/sign-in", (request, response) => {
     let username = request.body.username;
     let password = request.body.password;
-    db.query("SELECT * FROM Users.users WHERE username=(?);", username, (error, result) => {
-        if (result.length > 0) {
-            bcrypt.compare(password, result[0].password, (e, r) => {
-                if (r) {
-                    const id = result[0].id;
-                    const token = generateJwt(id);
-                    request.session.user = result;
-                    response.json({
-                        auth: true,
-                        token: token,
-                        result: result
-                    })
-                } else {
-                    response.json({
-                        auth: false,
-                        message: "Incorrect password"
-                    })
-                }
-            })
-        }
-        else {
+
+    getUserByUsername(username)
+        .then((result) => {
+            if (result.length > 0) {
+                bcrypt.compare(password, result[0].password, (e, r) => {
+                    if (r) {
+                        const id = result[0].id;
+                        const token = generateJwt(id);
+                        request.session.user = result;
+                        response.json({
+                            auth: true,
+                            token: token,
+                            result: result
+                        })
+                    } else {
+                        response.json({
+                            auth: false,
+                            message: "Incorrect password"
+                        })
+                    }
+                })
+            }
+            else {
+                response.json({
+                    auth: false,
+                    message: "User not found"
+                })
+            }
+        })
+        .catch((error) => {
+            console.log(error);
             response.json({
-                auth: false,
-                message: "User not found"
+                message: "Cannot sign-in"
             })
-        }
-    })
+        })
 })
 
 app.post("/sign-up", verifyJwt, (request, response) => {
     let username = request.body.username;
     let password = request.body.password;
     let role = request.body.role;
-    console.log("Sign up request received");
 
     bcrypt.hash(password, saltRounds, (error, hash) => {
         if (error) {
             console.log(error)
         }
         else {
-            db.query("SELECT * from Users.users WHERE username=(?);", username, (error, result) => {
-                if (result.length > 0) {
-                    response.status(400).send({
-                        message: "User Already Registered"
-                    });
-                }
-                else {
-                    db.query("INSERT INTO users (username, password, role) VALUES (?, ?, ?);", [username, hash, role], (error, result) => {
-                        if (error) {
-                            console.log(error)
-                            response.status(400).send({
-                                message: "Fail to Sign Up"
+            getUserByUsername(username)
+                .then((result) => {
+                    if (result.length > 0) {
+                        response.status(400).send({
+                            message: "User Already Registered"
+                        });
+                    }
+                    else {
+                        insertUserIntoDB(username, hash, role)
+                            .then((result) => {
+                                response.status(201).send({
+                                    message: "Successfully Registered"
+                                });
+                            })
+                            .catch((error) => {
+                                console.log(error)
+                                response.status(400).send({
+                                    message: "Fail to Sign Up"
+                                });
                             });
-                        }
-                        else {
-                            response.status(201).send({
-                                message: "Welcome new user"
-                            });
-                        }
-                    })
-                }
-            })
+                    }
+                })
+                .catch((error) => {
+                    response.status(500).send(error);
+                })
         }
     })
 })
+
+const insertUserIntoDB = (username, hash, role) => {
+    return new Promise(function (resolve, reject) {
+        db.query("INSERT INTO users (username, password, role) VALUES (?, ?, ?);", [username, hash, role], (error, result) => {
+            if (error) {
+                reject(error);
+            }
+            else {
+                resolve(result);
+            }
+        })
+    })
+}
+
+const getUserByUsername = (username) => {
+    return new Promise(function (resolve, reject) {
+        db.query("SELECT * FROM Users.users WHERE username=(?);", username, (error, result) => {
+            if (error) {
+                reject(error);
+            }
+            else {
+                resolve(result);
+            }
+        } )
+    })
+}
+
+const getAllRoles = () => {
+    return new Promise(function (resolve, reject) {
+        db.query("SELECT DISTINCT role FROM Users.users", (error, result) => {
+            if (error) {
+                reject(error);
+            }
+            else {
+                resolve(result);
+            }
+        })
+    })
+}
