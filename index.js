@@ -43,32 +43,40 @@ const db = mysql.createConnection({
 const PORT = 3001;
 
 const verifyJwt = (request, response, next) => {
-    const token = request.header("x-access-token");
+    const token = request.headers.authorization;
     if (!token) {
         console.log("No token detected")
-        response.send("No token detected")
+        response.status(401);
     }
     else {
-        jwt.verify(token, "jwtSecret", (error, decoded) => {
+        jwt.verify(token, "jwtSecret", (error, user) => {
             if (error) {
-                response.send({
+                console.log("Token not verified")
+                response.status(403).send({
                     auth: false,
                     message: "Invalid token"
                 });
             }
             else {
-                request.userId = decoded.id;
-                next(request.userId);
+                console.log("verified")
+                request.userId = user.id;
+                next();
             }
         })
     }
+}
+
+function generateJwt (id) {
+    return jwt.sign({id}, "jwtSecret", {
+        expiresIn: 600
+    });
 }
 
 app.listen(PORT, () => {
     console.log(`Server listening on ${PORT}`)
 })
 
-app.get("/roles", (request, response) => {
+app.get("/roles", verifyJwt, (request, response) => {
     db.query("SELECT DISTINCT role FROM Users.users", (error, result) => {
         if (error) {
             console.log(error);
@@ -82,24 +90,6 @@ app.get("/roles", (request, response) => {
     })
 })
 
-app.get("/sign-in", (request, response) => {
-    if (request.session.user) {
-        response.send({
-            loggedIn: true,
-            user: request.session.user,
-        })
-    }
-    else {
-        response.send({
-            loggedIn: false
-        })
-    }
-})
-
-app.get("/isAuthenticated", verifyJwt, (request, response) => {
-    response.send("User is successfully authenticated");
-})
-
 app.post("/sign-in", (request, response) => {
     let username = request.body.username;
     let password = request.body.password;
@@ -108,17 +98,14 @@ app.post("/sign-in", (request, response) => {
             bcrypt.compare(password, result[0].password, (e, r) => {
                 if (r) {
                     const id = result[0].id;
-                    const token = jwt.sign({id}, "jwtSecret", {
-                        expiresIn: 300
-                    })
+                    const token = generateJwt(id);
                     request.session.user = result;
                     response.json({
                         auth: true,
                         token: token,
                         result: result
                     })
-                }
-                else {
+                } else {
                     response.json({
                         auth: false,
                         message: "Incorrect password"
@@ -135,7 +122,7 @@ app.post("/sign-in", (request, response) => {
     })
 })
 
-app.post("/sign-up", (request, response) => {
+app.post("/sign-up", verifyJwt, (request, response) => {
     let username = request.body.username;
     let password = request.body.password;
     let role = request.body.role;
