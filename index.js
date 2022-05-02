@@ -2,7 +2,7 @@ const express = require('express');
 const app = express();
 const cors = require('cors');
 const morgan = require('morgan');
-const fs = require('fs')
+const file = require("rotating-file-stream")
 
 const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
@@ -39,8 +39,20 @@ app.use(
 );
 
 
-const accessLogStream = fs.createWriteStream(path.join(__dirname, 'access.log'), { flags: 'a' })
-app.use(morgan('dev', { stream: accessLogStream }))
+const devLogStream = file.createStream("dev.log", {
+    size: '10M',
+    interval: '7d'
+})
+const combineLogStream = file.createStream("combine.log", {
+    size: '10M',
+    interval: '7d'
+})
+app.use(morgan("dev", {
+    stream: devLogStream
+}));
+app.use(morgan("combined", {
+    stream: combineLogStream
+}));
 
 const PORT = process.env.PORT;
 const jwtSecret = crypto.createHash(process.env.encryptAlgorithm).update(process.env.jwtSecret, 'utf-8').digest('hex');
