@@ -13,7 +13,6 @@ const saltRounds = 10;
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const service = require("./service");
-const path = require("path");
 
 require('dotenv').config();
 
