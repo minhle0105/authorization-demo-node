@@ -24,7 +24,7 @@ app.use(cors({
     credentials: true
 }));
 app.use(cookieParser());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.urlencoded({extended: true}));
 
 app.use(
     session({
@@ -40,7 +40,7 @@ app.use(
 
 
 const accessLogStream = fs.createWriteStream(path.join(__dirname, 'access.log'), { flags: 'a' })
-app.use(morgan('combined', { stream: accessLogStream }))
+app.use(morgan('dev', { stream: accessLogStream }))
 
 const PORT = process.env.PORT;
 const jwtSecret = crypto.createHash(process.env.encryptAlgorithm).update(process.env.jwtSecret, 'utf-8').digest('hex');
@@ -174,5 +174,7 @@ app.get("/sign-out", (request, response) => {
     if (session) {
         request.session = null;
     }
-    response.status(200);
+    response.status(200).json({
+        message: "Successfully log out"
+    });
 })
