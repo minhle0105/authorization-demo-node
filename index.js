@@ -11,6 +11,7 @@ const saltRounds = 10;
 
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const service = require("./service");
 
 require('dotenv').config();
 
@@ -35,12 +36,7 @@ app.use(
     })
 );
 
-const db = mysql.createConnection({
-    user: process.env.database_user,
-    host: process.env.database_host,
-    password: process.env.database_password,
-    database: process.env.database_schema,
-});
+
 
 
 const PORT = process.env.PORT;
@@ -80,7 +76,7 @@ app.listen(PORT, () => {
 
 app.get("/roles", verifyJwt, (request, response) => {
 
-    getAllRoles()
+    service.getAllRoles()
         .then((result) => {
             response.status(200).send(result);
         })
@@ -96,7 +92,7 @@ app.post("/sign-in", (request, response) => {
     let username = request.body.username;
     let password = request.body.password;
 
-    getUserByUsername(username)
+    service.getUserByUsername(username)
         .then((result) => {
             if (result.length > 0) {
                 bcrypt.compare(password, result[0].password, (e, r) => {
@@ -142,7 +138,7 @@ app.post("/sign-up", verifyJwt, (request, response) => {
             console.log(error)
         }
         else {
-            getUserByUsername(username)
+            service.getUserByUsername(username)
                 .then((result) => {
                     if (result.length > 0) {
                         response.status(400).send({
@@ -150,7 +146,7 @@ app.post("/sign-up", verifyJwt, (request, response) => {
                         });
                     }
                     else {
-                        insertUserIntoDB(username, hash, role)
+                        service.insertUserIntoDB(username, hash, role)
                             .then((result) => {
                                 response.status(201).send({
                                     message: "Successfully Registered"
@@ -170,42 +166,3 @@ app.post("/sign-up", verifyJwt, (request, response) => {
         }
     })
 })
-
-const insertUserIntoDB = (username, hash, role) => {
-    return new Promise(function (resolve, reject) {
-        db.query("INSERT INTO users (username, password, role) VALUES (?, ?, ?);", [username, hash, role], (error, result) => {
-            if (error) {
-                reject(error);
-            }
-            else {
-                resolve(result);
-            }
-        })
-    })
-}
-
-const getUserByUsername = (username) => {
-    return new Promise(function (resolve, reject) {
-        db.query("SELECT * FROM Users.users WHERE username=(?);", username, (error, result) => {
-            if (error) {
-                reject(error);
-            }
-            else {
-                resolve(result);
-            }
-        } )
-    })
-}
-
-const getAllRoles = () => {
-    return new Promise(function (resolve, reject) {
-        db.query("SELECT DISTINCT role FROM Users.users", (error, result) => {
-            if (error) {
-                reject(error);
-            }
-            else {
-                resolve(result);
-            }
-        })
-    })
-}
