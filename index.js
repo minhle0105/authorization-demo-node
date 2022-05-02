@@ -93,41 +93,47 @@ app.get("/roles", verifyJwt, (request, response) => {
 app.post("/sign-in", (request, response) => {
     let username = request.body.username;
     let password = request.body.password;
-
-    service.getUserByUsername(username)
-        .then((result) => {
-            if (result.length > 0) {
-                bcrypt.compare(password, result[0].password, (e, r) => {
-                    if (r) {
-                        const id = result[0].id;
-                        const token = generateJwt(id);
-                        request.session.user = result;
-                        response.status(200).json({
-                            auth: true,
-                            token: token,
-                            result: result
-                        })
-                    } else {
-                        response.status(401).json({
-                            auth: false,
-                            message: "Incorrect password"
-                        })
-                    }
-                })
-            }
-            else {
-                response.status(401).json({
-                    auth: false,
-                    message: "User not found"
-                })
-            }
+    if (!username || !password) {
+        response.status(400).json({
+            message: "Missing username or password"
         })
-        .catch((error) => {
-            console.log(error);
-            response.status(401).json({
-                message: "Cannot sign-in"
+    }
+    else {
+        service.getUserByUsername(username)
+            .then((result) => {
+                if (result.length > 0) {
+                    bcrypt.compare(password, result[0].password, (e, r) => {
+                        if (r) {
+                            const id = result[0].id;
+                            const token = generateJwt(id);
+                            request.session.user = result;
+                            response.status(200).json({
+                                auth: true,
+                                token: token,
+                                result: result
+                            })
+                        } else {
+                            response.status(401).json({
+                                auth: false,
+                                message: "Incorrect password"
+                            })
+                        }
+                    })
+                }
+                else {
+                    response.status(401).json({
+                        auth: false,
+                        message: "User not found"
+                    })
+                }
             })
-        })
+            .catch((error) => {
+                console.log(error);
+                response.status(401).json({
+                    message: "Cannot sign-in"
+                })
+            })
+    }
 })
 
 app.post("/sign-up", verifyJwt, (request, response) => {
