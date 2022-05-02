@@ -168,3 +168,11 @@ app.post("/sign-up", verifyJwt, (request, response) => {
         }
     })
 })
+
+app.get("/sign-out", (request, response) => {
+    const session = request.session;
+    if (session) {
+        request.session = null;
+    }
+    response.status(200);
+})
