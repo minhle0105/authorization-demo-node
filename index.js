@@ -1,7 +1,8 @@
 const express = require('express');
 const app = express();
-const mysql = require('mysql');
 const cors = require('cors');
+const morgan = require('morgan');
+const fs = require('fs')
 
 const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
@@ -12,6 +13,7 @@ const saltRounds = 10;
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const service = require("./service");
+const path = require("path");
 
 require('dotenv').config();
 
@@ -37,7 +39,8 @@ app.use(
 );
 
 
-
+const accessLogStream = fs.createWriteStream(path.join(__dirname, 'access.log'), { flags: 'a' })
+app.use(morgan('combined', { stream: accessLogStream }))
 
 const PORT = process.env.PORT;
 const jwtSecret = crypto.createHash(process.env.encryptAlgorithm).update(process.env.jwtSecret, 'utf-8').digest('hex');
@@ -45,7 +48,6 @@ const jwtSecret = crypto.createHash(process.env.encryptAlgorithm).update(process
 const verifyJwt = (request, response, next) => {
     const token = request.headers.authorization;
     if (!token) {
-        console.log("No token detected")
         response.status(401);
     }
     else {
@@ -100,13 +102,13 @@ app.post("/sign-in", (request, response) => {
                         const id = result[0].id;
                         const token = generateJwt(id);
                         request.session.user = result;
-                        response.json({
+                        response.status(200).json({
                             auth: true,
                             token: token,
                             result: result
                         })
                     } else {
-                        response.json({
+                        response.status(401).json({
                             auth: false,
                             message: "Incorrect password"
                         })
@@ -114,7 +116,7 @@ app.post("/sign-in", (request, response) => {
                 })
             }
             else {
-                response.json({
+                response.status(401).json({
                     auth: false,
                     message: "User not found"
                 })
@@ -122,7 +124,7 @@ app.post("/sign-in", (request, response) => {
         })
         .catch((error) => {
             console.log(error);
-            response.json({
+            response.status(401).json({
                 message: "Cannot sign-in"
             })
         })
