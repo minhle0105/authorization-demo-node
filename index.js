@@ -13,6 +13,7 @@ const saltRounds = 10;
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const service = require("./service");
+const redis = require('redis');
 
 require('dotenv').config();
 
@@ -37,6 +38,17 @@ app.use(
     })
 );
 
+let redisClient = null;
+(async () => {
+    redisClient = redis.createClient();
+    redisClient.on("error", (error) => {
+        console.log(error);
+    });
+    redisClient.on("connect", () => {
+        console.log("Redis Connected!");
+    })
+    await redisClient.connect();
+})();
 
 const devLogStream = file.createStream("dev.log", {
     size: '10M',
@@ -56,10 +68,16 @@ app.use(morgan("combined", {
 const PORT = process.env.PORT;
 const jwtSecret = crypto.createHash(process.env.encryptAlgorithm).update(process.env.jwtSecret, 'utf-8').digest('hex');
 
-const verifyJwt = (request, response, next) => {
+const verifyJwt = async (request, response, next) => {
     const token = request.headers.authorization;
     if (!token) {
         response.status(401);
+    }
+    const tokenExpired = await redisClient.get(`bl_${token}`);
+    if (tokenExpired) {
+        response.status(401).json({
+            message: "JWT Token Expired"
+        })
     }
     else {
         jwt.verify(token, jwtSecret, (error, user) => {
@@ -88,7 +106,6 @@ app.listen(PORT, () => {
 })
 
 app.get("/roles", verifyJwt, (request, response) => {
-
     service.getAllRoles()
         .then((result) => {
             response.status(200).send(result);
@@ -186,11 +203,15 @@ app.post("/sign-up", verifyJwt, (request, response) => {
     })
 })
 
-app.get("/sign-out", (request, response) => {
+app.post("/sign-out", async (request, response) => {
     const session = request.session;
+    const jwtToken = request.body.jwtToken;
     if (session) {
         request.session = null;
     }
+    const tokenKey = `bl_${jwtToken}`;
+    await redisClient.set(tokenKey, jwtToken);
+    redisClient.expireAt(tokenKey, 600);
     response.status(200).json({
         message: "Successfully log out"
     });
